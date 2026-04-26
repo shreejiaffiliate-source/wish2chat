@@ -111,7 +111,8 @@ class EmailOTP(models.Model):
         return f"{self.email} - {self.otp}"
 
 class FCMDevice(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    # user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     fcm_token = models.TextField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

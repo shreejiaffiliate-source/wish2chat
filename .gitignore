@@ -3,6 +3,6 @@ venv/
 media/
 __pycache__/
 *.pyc
-*.json
 db.sqlite3
 .idea/
+.json/

@@ -469,18 +469,35 @@ class VerifyResetOTPView(APIView):
         else:
             return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def save_fcm_token(request):
+#     token = request.data.get('fcm_token')
+#     if token:
+#         # ✅ Sahi Tarika: Pehle check karo agar ye token kisi aur ke paas toh nahi
+#         # Agar hai, toh usey wahan se hatao aur current user ko dedo
+#         FCMDevice.objects.filter(fcm_token=token).delete() 
+        
+#         FCMDevice.objects.update_or_create(
+#             user=request.user, 
+#             defaults={'fcm_token': token}
+#         )
+#         return Response({"status": "Token saved"}, status=200)
+#     return Response({"error": "No token"}, status=400)
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def save_fcm_token(request):
-    token = request.data.get('fcm_token')
-    if token:
-        # ✅ Sahi Tarika: Pehle check karo agar ye token kisi aur ke paas toh nahi
-        # Agar hai, toh usey wahan se hatao aur current user ko dedo
-        FCMDevice.objects.filter(fcm_token=token).delete() 
-        
-        FCMDevice.objects.update_or_create(
-            user=request.user, 
-            defaults={'fcm_token': token}
-        )
-        return Response({"status": "Token saved"}, status=200)
-    return Response({"error": "No token"}, status=400)
+    fcm_token = request.data.get('fcm_token')
+
+    if not fcm_token:
+        return Response({"error": "No token provided"}, status=400)
+
+    FCMDevice.objects.filter(fcm_token=fcm_token).exclude(user=request.user).delete()
+
+    FCMDevice.objects.update_or_create(
+        user=request.user,
+        defaults={"fcm_token": fcm_token}
+    )
+
+    return Response({"status": "Token saved successfully"}, status=200)

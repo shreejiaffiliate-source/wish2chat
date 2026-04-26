@@ -2,77 +2,130 @@ import os
 import firebase_admin
 from firebase_admin import messaging, credentials
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 from django.conf import settings
 from core.models import SubCategory, FCMDevice
+from django.utils.timezone import localdate
+
 
 class Command(BaseCommand):
-    help = 'Sends daily 8 AM event notifications'
+    help = "Sends daily event notifications"
 
     def handle(self, *args, **options):
-        # 1. Firebase Initialize (Check if already initialized)
+
+        # Firebase initialize
         if not firebase_admin._apps:
             try:
-                # Root folder mein serviceAccountKey.json hona chahiye
-                cred_path = os.path.join(settings.BASE_DIR, 'serviceAccountKey.json')
+                cred_path = os.path.join(
+                    settings.BASE_DIR,
+                    "serviceAccountKey.json"
+                )
                 cred = credentials.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
-                self.stdout.write(self.style.SUCCESS("🔥 Firebase Initialized!"))
+
+                self.stdout.write(
+                    self.style.SUCCESS("🔥 Firebase Initialized!")
+                )
+
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"❌ Firebase Init Error: {e}"))
+                self.stdout.write(
+                    self.style.ERROR(
+                        f"❌ Firebase Init Error: {e}"
+                    )
+                )
                 return
 
-        # 2. Aaj ki date dhoondo (IST ke hisaab se)
-        today = timezone.now().date()
-        self.stdout.write(f"🔍 Checking for events on: {today}")
+        # Today's date
+        today = localdate()
 
-        # 3. Aaj ka event dhoondo
-        event = SubCategory.objects.filter(date_event=today, is_active=True).first()
+        self.stdout.write(
+            f"🔍 Checking for events on: {today}"
+        )
 
-        if not event:
-            self.stdout.write(self.style.WARNING("⚠️ No event found for today in Database."))
+        # Get all today's events
+        events = SubCategory.objects.filter(
+            date_event=today,
+            is_active=True
+        )
+
+        if not events.exists():
+            self.stdout.write(
+                self.style.WARNING(
+                    "⚠️ No events found for today."
+                )
+            )
             return
 
-        self.stdout.write(self.style.SUCCESS(f"✅ Event Found: {event.name}"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"✅ Event Found: {events.count()}"
+            )
+        )
 
-        # 4. Message Body Taiyaar karo
-        msg_title = "Special Occasion! ✨"
-        msg_body = f"On the Occasion of {event.name}, share beautiful messages to your loved ones!"
-
-        # 5. Saare Tokens nikaalo
+        # Get all devices
         devices = FCMDevice.objects.all()
+
         if not devices.exists():
-            self.stdout.write(self.style.ERROR("📱 No devices found in FCMDevice table."))
+            self.stdout.write(
+                self.style.ERROR(
+                    "📱 No devices found."
+                )
+            )
             return
 
-        self.stdout.write(f"🚀 Sending to {devices.count()} devices...")
+        self.stdout.write(
+            f"🚀 Sending to {devices.count()} devices..."
+        )
 
-        # 6. Notifications bhejo (Loop)
         success_count = 0
         failure_count = 0
 
-        for device in devices:
-            message = messaging.Message(
-                notification=messaging.Notification(
-                    title=msg_title,
-                    body=msg_body,
-                ),
-                # App ke andar handling ke liye data payload bhi bhej sakte hain
-                data={
-                    "event_name": event.name,
-                    "sub_category_id": str(event.id),
-                    "click_action": "FLUTTER_NOTIFICATION_CLICK",
-                },
-                token=device.fcm_token,
+        # IMPORTANT: nested loop
+        for event in events:
+
+            msg_title = "Special Occasion! ✨"
+            msg_body = (
+                f"On the Occasion of {event.name}, "
+                f"share beautiful messages to your loved ones!"
             )
 
-            try:
-                messaging.send(message)
-                success_count += 1
-            except Exception as e:
-                failure_count += 1
-                self.stdout.write(self.style.ERROR(f"❌ Failed for {device.user.username}: {e}"))
+            for device in devices:
 
-        self.stdout.write(self.style.SUCCESS(
-            f"🎯 Task Finished! Sent: {success_count}, Failed: {failure_count}"
-        ))
+                try:
+                    message = messaging.Message(
+                        notification=messaging.Notification(
+                            title=msg_title,
+                            body=msg_body,
+                        ),
+                        data={
+                            "event_name": event.name,
+                            "sub_category_id": str(event.id),
+                            "sub_category_name": event.name,
+                            "click_action": "FLUTTER_NOTIFICATION_CLICK",
+                        },
+                        token=device.fcm_token,
+                    )
+
+                    messaging.send(message)
+
+                    success_count += 1
+
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"✅ Sent {event.name} -> {device.user.username}"
+                        )
+                    )
+
+                except Exception as e:
+                    failure_count += 1
+
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"❌ Failed {event.name} -> {device.user.username}: {e}"
+                        )
+                    )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"🎯 Task Finished! Sent: {success_count}, Failed: {failure_count}"
+            )
+        )
