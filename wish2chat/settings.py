@@ -179,10 +179,15 @@ REST_FRAMEWORK = {
 }
 
 # --- Real Gmail SMTP Configuration ---
+# --- Email Config ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'shreejiaffiliate@gmail.com'
-EMAIL_HOST_PASSWORD = 'cqalsnvodeavhxxa' # Google App Password
+EMAIL_HOST_PASSWORD = 'pxbqlsrnwpfjlgwp'
+
+# Yahan 'GyanSetu' ki jagah 'Job Portal' likh dijiye
+DEFAULT_FROM_EMAIL = 'wish2chat <shreejiaffiliate@gmail.com>'
+SERVER_EMAIL = 'shreejiaffiliate@gmail.com'
 GOOGLE_OAUTH2_CLIENT_ID = "Y655836602340-rt68kot2cgjl4nub7ru91v71rkrtm7qm.apps.googleusercontent.com"
