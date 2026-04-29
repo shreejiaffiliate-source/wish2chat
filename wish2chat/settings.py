@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "django_filters",
+    'django_apscheduler',  # Add this
+
 ]
 
 MIDDLEWARE = [
@@ -191,3 +193,24 @@ EMAIL_HOST_PASSWORD = 'pxbqlsrnwpfjlgwp'
 DEFAULT_FROM_EMAIL = 'wish2chat <shreejiaffiliate@gmail.com>'
 SERVER_EMAIL = 'shreejiaffiliate@gmail.com'
 GOOGLE_OAUTH2_CLIENT_ID = "Y655836602340-rt68kot2cgjl4nub7ru91v71rkrtm7qm.apps.googleusercontent.com"
+
+# APScheduler Configuration
+APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Optional: For logging
+APSCHEDULER_RUN_NOW_TIMEOUT = 25  # Seconds
+
+# Scheduler settings
+SCHEDULER_CONFIG = {
+    "apscheduler.jobstores.default": {
+        "class": "django_apscheduler.jobstores:DjangoJobStore"
+    },
+    'apscheduler.executors.default': {
+        'class': 'apscheduler.executors.threadpool:ThreadPoolExecutor',
+        'max_workers': '20'
+    },
+    'apscheduler.job_defaults': {
+        'coalesce': False,
+        'max_instances': 1,
+        'misfire_grace_time': 30,
+    },
+    'apscheduler.timezone': 'Asia/Kolkata',  # Change to your timezone (e.g., 'UTC' if needed)
+}

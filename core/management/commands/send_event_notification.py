@@ -1,4 +1,5 @@
 import os
+import logging
 import firebase_admin
 from firebase_admin import messaging, credentials
 from django.core.management.base import BaseCommand
@@ -6,11 +7,16 @@ from django.conf import settings
 from core.models import SubCategory, FCMDevice
 from django.utils.timezone import localdate
 
-
 class Command(BaseCommand):
     help = "Sends daily event notifications"
 
     def handle(self, *args, **options):
+        # Setup logging to file (for live server)
+        logging.basicConfig(
+            filename=os.path.join(settings.BASE_DIR, 'notification_log.txt'),
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
 
         # Firebase initialize
         if not firebase_admin._apps:
@@ -21,25 +27,14 @@ class Command(BaseCommand):
                 )
                 cred = credentials.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
-
-                self.stdout.write(
-                    self.style.SUCCESS("🔥 Firebase Initialized!")
-                )
-
+                logging.info("Firebase Initialized!")
             except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"❌ Firebase Init Error: {e}"
-                    )
-                )
+                logging.error(f"Firebase Init Error: {e}")
                 return
 
         # Today's date
         today = localdate()
-
-        self.stdout.write(
-            f"🔍 Checking for events on: {today}"
-        )
+        logging.info(f"Checking for events on: {today}")
 
         # Get all today's events
         events = SubCategory.objects.filter(
@@ -48,48 +43,32 @@ class Command(BaseCommand):
         )
 
         if not events.exists():
-            self.stdout.write(
-                self.style.WARNING(
-                    "⚠️ No events found for today."
-                )
-            )
+            logging.warning("No events found for today.")
             return
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"✅ Event Found: {events.count()}"
-            )
-        )
+        logging.info(f"Event Found: {events.count()}")
 
         # Get all devices
         devices = FCMDevice.objects.all()
 
         if not devices.exists():
-            self.stdout.write(
-                self.style.ERROR(
-                    "📱 No devices found."
-                )
-            )
+            logging.error("No devices found.")
             return
 
-        self.stdout.write(
-            f"🚀 Sending to {devices.count()} devices..."
-        )
+        logging.info(f"Sending to {devices.count()} devices...")
 
         success_count = 0
         failure_count = 0
 
         # IMPORTANT: nested loop
         for event in events:
-
             msg_title = "Special Occasion! ✨"
             msg_body = (
                 f"On the Occasion of {event.name}, "
-                f"share beautiful messages to your loved ones!"
+                "share beautiful messages to your loved ones!"
             )
 
             for device in devices:
-
                 try:
                     message = messaging.Message(
                         notification=messaging.Notification(
@@ -106,26 +85,11 @@ class Command(BaseCommand):
                     )
 
                     messaging.send(message)
-
                     success_count += 1
-
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"✅ Sent {event.name} -> {device.user.username}"
-                        )
-                    )
+                    logging.info(f"Sent {event.name} -> {device.user.username}")
 
                 except Exception as e:
                     failure_count += 1
+                    logging.error(f"Failed {event.name} -> {device.user.username}: {e}")
 
-                    self.stdout.write(
-                        self.style.ERROR(
-                            f"❌ Failed {event.name} -> {device.user.username}: {e}"
-                        )
-                    )
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"🎯 Task Finished! Sent: {success_count}, Failed: {failure_count}"
-            )
-        )
+        logging.info(f"Task Finished! Sent: {success_count}, Failed: {failure_count}")
